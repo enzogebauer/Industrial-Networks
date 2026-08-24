@@ -74,19 +74,34 @@ python diagnostico.py --tcp 192.168.127.254:4001
 
 Faça isso antes de partir para Modbus. Se o texto não passa, Modbus também não vai.
 
+Com o NPort em **TCP Server mode**, que é o caminho do `step-by-step.md` — sem
+driver proprietário em lugar nenhum:
+
 ```bash
 # Computador A
 python chat_serial.py --porta /dev/ttyUSB0 --nome A
 
-# Computador B (com driver Real COM instalado)
-python chat_serial.py --porta COM5 --nome B
+# Computador B
+python chat_tcp_nport.py --host 192.168.127.254 --nome B
 ```
 
-Ou, com o NPort em TCP Server mode e sem instalar driver nenhum:
+Ou, com o NPort em **Real COM mode** e o driver da MOXA instalado no B, que
+mapeia o gateway como uma COM virtual e deixa o mesmo script rodar nos dois lados:
 
 ```bash
 # Computador B
-python chat_tcp_nport.py --host 192.168.127.254
+python chat_serial.py --porta COM5 --nome B
+```
+
+Os dois modos são exclusivos: exigem configurações diferentes em Operating
+Settings. Escolha um e siga inteiro.
+
+Se aparecer lixo na tela em vez de texto, pare o chat e use o sniffer — ele
+mostra o byte cru e separa problema elétrico de baud rate divergente:
+
+```bash
+python sniffer.py --porta /dev/ttyUSB0 --segundos 10       # A
+python sniffer_tcp.py --host 192.168.127.254 --segundos 10  # B
 ```
 
 ### Etapa 3 — Modbus RTU
@@ -95,14 +110,14 @@ python chat_tcp_nport.py --host 192.168.127.254
 # Computador A
 python modbus_slave.py --porta /dev/ttyUSB0 --slave-id 1
 
-# Computador B — via COM virtual
-python modbus_master.py serial --porta COM5 --slave-id 1
-
-# Computador B — via TCP direto
+# Computador B — via TCP direto (NPort em TCP Server mode)
 python modbus_master.py tcp --host 192.168.127.254 --slave-id 1
 
+# Computador B — via COM virtual (NPort em Real COM mode)
+python modbus_master.py serial --porta COM5 --slave-id 1
+
 # Escrevendo um setpoint no escravo
-python modbus_master.py serial --porta COM5 --setpoint 42
+python modbus_master.py tcp --host 192.168.127.254 --setpoint 42
 ```
 
 Saída esperada no mestre:
