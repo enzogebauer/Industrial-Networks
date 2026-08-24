@@ -33,6 +33,8 @@ fazem exatamente isso.
 | Arquivo | Onde roda | O que faz |
 |---|---|---|
 | `diagnostico.py` | qualquer | Lista portas, testa loopback físico, testa alcance TCP do NPort |
+| `sniffer.py` | A e B | Mostra os bytes crus em hexa e diz se o problema é elétrico ou de baud |
+| `sniffer_tcp.py` | B | O mesmo, pelo lado TCP do NPort |
 | `chat_serial.py` | A e B | Chat bidirecional de texto cru. Mesmo script nos dois lados |
 | `chat_tcp_nport.py` | B | Chat pelo lado B via socket puro, sem driver Real COM |
 | `modbus_slave.py` | A | Escravo Modbus RTU simulando um sensor |

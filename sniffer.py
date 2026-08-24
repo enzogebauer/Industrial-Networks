@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""
+Sniffer serial em hexadecimal — o que o chat esconde.
+
+Quando aparece "lixo" na tela do chat, nao da para saber o que aconteceu: o
+decode UTF-8 transforma qualquer byte invalido no mesmo caractere. Aqui os
+bytes aparecem crus, e o script conclui se o problema e eletrico ou de baud.
+
+Uso:
+    python sniffer.py --porta /dev/cu.usbserial-130
+        Escuta 10s SEM transmitir nada. Com os dois lados parados, o esperado
+        e ZERO byte. Qualquer coisa que apareca aqui e ruido, nao dado.
+
+    python sniffer.py --porta /dev/cu.usbserial-130 --enviar "PING-123"
+        Transmite e mostra o que volta, em hexa. Serve para ver eco do proprio
+        conversor e medir a razao entre bytes enviados e recebidos.
+
+    python sniffer.py --porta /dev/cu.usbserial-130 --varrer
+        Testa varias baud rates enquanto o OUTRO lado transmite sem parar, e
+        indica qual delas produz texto legivel.
+"""
+
+import argparse
+import sys
+import time
+
+import serial
+
+from analise import diagnostico, formata_linha, fracao_printavel
+
+BAUDS = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
+
+
+def escuta(ser: serial.Serial, segundos: float, mostrar: bool) -> bytes:
+    """Le tudo que chegar durante a janela de tempo, imprimindo em hexa."""
+    inicio = time.monotonic()
+    dados = bytearray()
+    pendente = bytearray()
+    offset = 0
+
+    while time.monotonic() - inicio < segundos:
+        try:
+            bloco = ser.read(ser.in_waiting or 1)
+        except serial.SerialException as e:
+            print(f"[porta caiu: {e}]")
+            break
+
+        if not bloco:
+            continue
+
+        dados.extend(bloco)
+        if mostrar:
+            pendente.extend(bloco)
+            while len(pendente) >= 16:
+                print(formata_linha(offset, bytes(pendente[:16])))
+                del pendente[:16]
+                offset += 16
+
+    if mostrar and pendente:
+        print(formata_linha(offset, bytes(pendente)))
+
+    return bytes(dados)
+
+
+def varrer(porta: str, segundos: float) -> None:
+    """Abre a porta em cada baud e ve qual produz texto com mais sentido."""
+    print("Varredura de baud rate.")
+    print("Mantenha o OUTRO lado transmitindo texto sem parar durante o teste.")
+    print(f"{len(BAUDS)} taxas x {segundos:.0f}s cada.\n")
+
+    resultados = []
+    for baud in BAUDS:
+        try:
+            with serial.Serial(porta, baud, timeout=0.1) as ser:
+                time.sleep(0.1)
+                ser.reset_input_buffer()
+                dados = escuta(ser, segundos, mostrar=False)
+        except serial.SerialException as e:
+            print(f"  {baud:>6} bps   erro ao abrir: {e}")
+            continue
+
+        if not dados:
+            print(f"  {baud:>6} bps   nada recebido")
+            continue
+
+        frac = fracao_printavel(dados)
+        resultados.append((frac, baud, len(dados)))
+        print(f"  {baud:>6} bps   {len(dados):6d} bytes   "
+              f"{100 * frac:5.1f}% imprimivel")
+
+    print()
+    if not resultados:
+        print("Nenhuma taxa recebeu nada. O outro lado estava transmitindo?")
+        print("Se estava, o problema e fiacao, nao baud rate.")
+        return
+
+    frac, baud, _ = max(resultados)
+    if frac > 0.90:
+        print(f">>> {baud} bps produz texto limpo. Use essa taxa nos dois lados.")
+    else:
+        print(f">>> Melhor resultado: {baud} bps com apenas "
+              f"{100 * frac:.0f}% imprimivel.")
+        print("    Nenhuma taxa deu texto limpo — o problema nao e baud rate.")
+        print("    Va para a fiacao: polaridade +/-, GND comum, modo do NPort.")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Sniffer serial em hexadecimal")
+    ap.add_argument("--porta", required=True, help="porta serial")
+    ap.add_argument("--baudrate", type=int, default=9600)
+    ap.add_argument("--segundos", type=float, default=10.0,
+                    help="duracao da escuta")
+    ap.add_argument("--enviar", help="texto a transmitir antes de escutar")
+    ap.add_argument("--varrer", action="store_true",
+                    help="testa varias baud rates em sequencia")
+    args = ap.parse_args()
+
+    if args.varrer:
+        varrer(args.porta, min(args.segundos, 3.0))
+        return
+
+    try:
+        ser = serial.Serial(
+            port=args.porta,
+            baudrate=args.baudrate,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            timeout=0.1,
+        )
+    except serial.SerialException as e:
+        print(f"Erro ao abrir {args.porta}: {e}")
+        sys.exit(1)
+
+    with ser:
+        time.sleep(0.2)
+        ser.reset_input_buffer()
+
+        enviados = 0
+        if args.enviar:
+            carga = f"{args.enviar}\n".encode("utf-8")
+            ser.write(carga)
+            ser.flush()
+            enviados = len(carga)
+            print(f"Enviados {enviados} bytes: {carga!r}")
+        else:
+            print("Modo escuta pura — nada sera transmitido por este lado.")
+            print("Deixe o outro lado parado tambem: o esperado e ZERO byte.")
+
+        print(f"Escutando {args.porta} @ {args.baudrate} bps "
+              f"por {args.segundos:.0f}s...\n")
+        dados = escuta(ser, args.segundos, mostrar=True)
+
+    if enviados and dados:
+        print(f"\nrazao recebido/enviado: {len(dados) / enviados:.1f}x")
+
+    diagnostico(dados, args.segundos, enviou=bool(args.enviar))
+
+
+if __name__ == "__main__":
+    main()

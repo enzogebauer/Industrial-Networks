@@ -135,6 +135,7 @@ escravo que o setpoint chegou.
 | `diagnostico.py` não lista porta nenhuma | Driver FTDI não instalado | Passo 3 |
 | Loopback não retorna nada | Ponte errada ou MOD conectado | Passo 6 |
 | Loopback retorna lixo | Baud rate divergente | Passo 4 |
+| Lixo contínuo mesmo sem ninguém digitar | Linha flutuando, ou o outro lado não entra em alta impedância | `sniffer.py` primeiro, depois passos 1 e 4 |
 | Chat não passa em nenhuma direção | Polaridade invertida (+/-) no par trançado | Passo 1 |
 | Chat passa, Modbus não responde | NPort em RS-422/4-wire em vez de RS-485 2-wire | Passo 4 |
 | Timeout intermitente no Modbus | Latency Timer ainda em 16 ms | Passo 3 |
