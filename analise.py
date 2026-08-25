@@ -63,12 +63,16 @@ def diagnostico(dados: bytes, segundos: float, enviou: bool) -> None:
             print("    - baud rate muito distante nas duas pontas")
             print("  Se ninguem estava transmitindo, esse teste nao diz nada.")
         else:
-            print(f"Barramento silencioso: 0 bytes em {segundos:.0f}s.")
+            print(f"Nenhum byte nesta janela de {segundos:.0f}s.")
             print()
-            print("  Esse e o resultado CORRETO com ninguem transmitindo.")
-            print("  Significa que a linha esta em repouso limpo: os drivers")
-            print("  estao em alta impedancia e existe bias suficiente para o")
-            print("  receptor nao oscilar. Pode seguir para o teste de dados.")
+            print("  Isso ainda NAO prova que o barramento esta limpo. Ruido")
+            print("  esporadico — poucos bytes por minuto — passa despercebido")
+            print("  numa janela curta, e e exatamente o que o chat acumula ao")
+            print("  ficar aberto por varios minutos.")
+            if segundos < 60:
+                print()
+                print("  >>> Se o chat mostra lixo mas este teste nao, repita")
+                print("      com --segundos 120 antes de concluir qualquer coisa.")
         return
 
     taxa = len(dados) / segundos

@@ -10,13 +10,15 @@ Sem --porta ele acha o USB-i485 sozinho pelo VID do chip FTDI, porque o nome
 da porta muda de uma replugada para outra.
 
 Uso:
-    python sniffer.py
-        Escuta 10s SEM transmitir nada. Com os dois lados parados, o esperado
-        e ZERO byte. Qualquer coisa que apareca aqui e ruido, nao dado.
+    python sniffer.py --segundos 120
+        Escuta SEM transmitir nada. Qualquer byte que apareca e ruido, nao
+        dado. Use janela longa: ruido esporadico nao aparece em 10s, mas o
+        chat acumula ao longo de minutos e acaba mostrando.
 
-    python sniffer.py --enviar "PING-123"
+    python sniffer.py --enviar "PING-123" --repetir 20
         Transmite e mostra o que volta, em hexa. Serve para ver eco do proprio
-        conversor e medir a razao entre bytes enviados e recebidos.
+        conversor e medir a razao entre bytes enviados e recebidos. Repetir
+        aumenta a chance de provocar um erro intermitente.
 
     python sniffer.py --varrer
         Testa varias baud rates enquanto o OUTRO lado transmite sem parar, e
@@ -29,18 +31,24 @@ import time
 
 import serial
 
-from analise import diagnostico, formata_linha, fracao_printavel
+from analise import diagnostico, formata_linha, fracao_printavel, hexdump
 from portas import detectar
 
 BAUDS = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
 
 
 def escuta(ser: serial.Serial, segundos: float, mostrar: bool) -> bytes:
-    """Le tudo que chegar durante a janela de tempo, imprimindo em hexa."""
+    """Le tudo que chegar durante a janela de tempo, imprimindo em hexa.
+
+    Marca o instante de cada rajada quando ha pausa entre elas. Ruido continuo
+    e ruido periodico produzem o mesmo hexdump, mas causas diferentes — o
+    intervalo entre rajadas e o que separa os dois.
+    """
     inicio = time.monotonic()
     dados = bytearray()
     pendente = bytearray()
     offset = 0
+    ultima = None
 
     while time.monotonic() - inicio < segundos:
         try:
@@ -51,6 +59,11 @@ def escuta(ser: serial.Serial, segundos: float, mostrar: bool) -> bytes:
 
         if not bloco:
             continue
+
+        agora = time.monotonic()
+        if mostrar and (ultima is None or agora - ultima > 1.0):
+            print(f"--- t = {agora - inicio:6.2f}s ---")
+        ultima = agora
 
         dados.extend(bloco)
         if mostrar:
@@ -116,6 +129,8 @@ def main() -> None:
     ap.add_argument("--segundos", type=float, default=10.0,
                     help="duracao da escuta")
     ap.add_argument("--enviar", help="texto a transmitir antes de escutar")
+    ap.add_argument("--repetir", type=int, default=1,
+                    help="quantas vezes repetir o texto (ajuda a provocar o erro)")
     ap.add_argument("--varrer", action="store_true",
                     help="testa varias baud rates em sequencia")
     args = ap.parse_args()
@@ -146,10 +161,14 @@ def main() -> None:
         enviados = 0
         if args.enviar:
             carga = f"{args.enviar}\n".encode("utf-8")
-            ser.write(carga)
-            ser.flush()
-            enviados = len(carga)
-            print(f"Enviados {enviados} bytes: {carga!r}")
+            for _ in range(args.repetir):
+                ser.write(carga)
+                ser.flush()
+            enviados = len(carga) * args.repetir
+            print(f"Enviados {enviados} bytes "
+                  f"({args.repetir}x {len(carga)}), em hexa:")
+            hexdump(carga)
+            print()
         else:
             print("Modo escuta pura — nada sera transmitido por este lado.")
             print("Deixe o outro lado parado tambem: o esperado e ZERO byte.")
