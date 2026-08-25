@@ -61,6 +61,7 @@ Plugue o cabo USB.
 Confirme a porta:
 
 ```bash
+# Computador A
 python diagnostico.py
 ```
 
@@ -71,9 +72,10 @@ Nas propriedades avançadas da porta, mude o **Latency Timer de 16 ms para 4 ms*
 
 ## 4. Configurar o NPort pelo console web
 
-Coloque um PC na mesma rede do NPort (faixa `192.168.127.x` se ainda estiver
-no padrão de fábrica — se o console não abrir, é isso, ajuste o IP do seu PC
-antes de insistir no cabo) e acesse:
+Do **Computador B** (é ele que fica na rede do NPort), acesse o console web.
+O B precisa estar na mesma faixa — `192.168.127.x` se o NPort ainda estiver no
+padrão de fábrica. Se o console não abrir, é isso: ajuste o IP do B antes de
+insistir no cabo.
 
 ```
 http://192.168.127.254   (senha: moxa)
@@ -101,6 +103,7 @@ Conecte o NPort ao switch/roteador (ou direto no Computador B, com cabo
 cross-over). Do Computador B:
 
 ```bash
+# Computador B
 python diagnostico.py --tcp <IP_do_NPort>:4001
 ```
 
@@ -136,6 +139,7 @@ No Computador A, **desconecte o fio que vai para o NPort** e ponteie
 temporariamente Rx+ com Tx+ e Rx- com Tx- no bloco do USB-i485:
 
 ```bash
+# Computador A
 python sniffer.py --porta /dev/cu.usbserial-130 --enviar "PING-123" --segundos 5
 ```
 
