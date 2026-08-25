@@ -24,6 +24,8 @@ from pymodbus.datastore import (
 from pymodbus.framer.rtu_framer import ModbusRtuFramer
 from pymodbus.server import StartSerialServer
 
+from portas import detectar
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
 
@@ -68,25 +70,27 @@ def simular_sensor(store: ModbusSlaveContext, parar: threading.Event) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--porta", required=True)
+    ap.add_argument("--porta", default="auto",
+                    help="porta serial; 'auto' procura o chip FTDI do USB-i485")
     ap.add_argument("--baudrate", type=int, default=9600)
     ap.add_argument("--slave-id", type=int, default=1)
     args = ap.parse_args()
 
+    porta = detectar(args.porta)
     context, store = montar_contexto()
 
     parar = threading.Event()
     threading.Thread(target=simular_sensor, args=(store, parar), daemon=True).start()
 
     log.info("Escravo Modbus RTU id=%d em %s @ %d bps",
-             args.slave_id, args.porta, args.baudrate)
+             args.slave_id, porta, args.baudrate)
     log.info("Aguardando o mestre. Ctrl+C para sair.")
 
     try:
         StartSerialServer(
             context=context,
             framer=ModbusRtuFramer,
-            port=args.porta,
+            port=porta,
             baudrate=args.baudrate,
             bytesize=8,
             parity="N",

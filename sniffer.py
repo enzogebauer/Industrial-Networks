@@ -6,16 +6,19 @@ Quando aparece "lixo" na tela do chat, nao da para saber o que aconteceu: o
 decode UTF-8 transforma qualquer byte invalido no mesmo caractere. Aqui os
 bytes aparecem crus, e o script conclui se o problema e eletrico ou de baud.
 
+Sem --porta ele acha o USB-i485 sozinho pelo VID do chip FTDI, porque o nome
+da porta muda de uma replugada para outra.
+
 Uso:
-    python sniffer.py --porta /dev/cu.usbserial-130
+    python sniffer.py
         Escuta 10s SEM transmitir nada. Com os dois lados parados, o esperado
         e ZERO byte. Qualquer coisa que apareca aqui e ruido, nao dado.
 
-    python sniffer.py --porta /dev/cu.usbserial-130 --enviar "PING-123"
+    python sniffer.py --enviar "PING-123"
         Transmite e mostra o que volta, em hexa. Serve para ver eco do proprio
         conversor e medir a razao entre bytes enviados e recebidos.
 
-    python sniffer.py --porta /dev/cu.usbserial-130 --varrer
+    python sniffer.py --varrer
         Testa varias baud rates enquanto o OUTRO lado transmite sem parar, e
         indica qual delas produz texto legivel.
 """
@@ -27,6 +30,7 @@ import time
 import serial
 
 from analise import diagnostico, formata_linha, fracao_printavel
+from portas import detectar
 
 BAUDS = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
 
@@ -106,7 +110,8 @@ def varrer(porta: str, segundos: float) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Sniffer serial em hexadecimal")
-    ap.add_argument("--porta", required=True, help="porta serial")
+    ap.add_argument("--porta", default="auto",
+                    help="porta serial; 'auto' procura o chip FTDI do USB-i485")
     ap.add_argument("--baudrate", type=int, default=9600)
     ap.add_argument("--segundos", type=float, default=10.0,
                     help="duracao da escuta")
@@ -115,13 +120,15 @@ def main() -> None:
                     help="testa varias baud rates em sequencia")
     args = ap.parse_args()
 
+    porta = detectar(args.porta)
+
     if args.varrer:
-        varrer(args.porta, min(args.segundos, 3.0))
+        varrer(porta, min(args.segundos, 3.0))
         return
 
     try:
         ser = serial.Serial(
-            port=args.porta,
+            port=porta,
             baudrate=args.baudrate,
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
@@ -129,7 +136,7 @@ def main() -> None:
             timeout=0.1,
         )
     except serial.SerialException as e:
-        print(f"Erro ao abrir {args.porta}: {e}")
+        print(f"Erro ao abrir {porta}: {e}")
         sys.exit(1)
 
     with ser:
@@ -147,7 +154,7 @@ def main() -> None:
             print("Modo escuta pura — nada sera transmitido por este lado.")
             print("Deixe o outro lado parado tambem: o esperado e ZERO byte.")
 
-        print(f"Escutando {args.porta} @ {args.baudrate} bps "
+        print(f"Escutando {porta} @ {args.baudrate} bps "
               f"por {args.segundos:.0f}s...\n")
         dados = escuta(ser, args.segundos, mostrar=True)
 

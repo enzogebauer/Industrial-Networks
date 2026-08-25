@@ -65,8 +65,14 @@ Confirme a porta:
 python diagnostico.py
 ```
 
-Deve aparecer marcada como chip FTDI (VID `0403`). Anote o nome da porta —
-`/dev/ttyUSB0` no Linux, `/dev/cu.usbserial-XXX` no macOS, `COMx` no Windows.
+Deve aparecer marcada como chip FTDI (VID `0403`) — `/dev/ttyUSB0` no Linux,
+`/dev/cu.usbserial-XXX` no macOS, `COMx` no Windows.
+
+> **Não decore esse nome.** Ele muda sozinho quando você repluga o cabo em outra
+> entrada USB: no macOS o número codifica o conector físico (`-120`, `-130`,
+> `-1130`), no Linux é a ordem de conexão. Por isso os scripts do lado A acham a
+> porta sozinhos pelo VID do FTDI quando você omite `--porta`. Passe o nome
+> explícito só se houver mais de um dispositivo FTDI na máquina.
 
 Nas propriedades avançadas da porta, mude o **Latency Timer de 16 ms para 4 ms**.
 
@@ -123,7 +129,7 @@ Com **ninguém digitando nos dois lados**, escute em cada ponta:
 
 ```bash
 # Computador A
-python sniffer.py --porta /dev/cu.usbserial-130 --segundos 10
+python sniffer.py --segundos 10
 
 # Computador B
 python sniffer_tcp.py --host <IP_do_NPort> --segundos 10
@@ -140,7 +146,7 @@ temporariamente Rx+ com Tx+ e Rx- com Tx- no bloco do USB-i485:
 
 ```bash
 # Computador A
-python sniffer.py --porta /dev/cu.usbserial-130 --enviar "PING-123" --segundos 5
+python sniffer.py --enviar "PING-123" --segundos 5
 ```
 
 | Resultado | Leitura |
@@ -160,7 +166,7 @@ Com a fiação real montada, transmita de A e escute em B ao mesmo tempo:
 python sniffer_tcp.py --host <IP_do_NPort> --segundos 15
 
 # Computador A, em seguida
-python sniffer.py --porta /dev/cu.usbserial-130 --enviar "PING-123" --segundos 5
+python sniffer.py --enviar "PING-123" --segundos 5
 ```
 
 O `sniffer_tcp.py` deve mostrar exatamente `50 49 4E 47 2D 31 32 33 0A`. Se
@@ -172,7 +178,7 @@ divergência de baud rate — 90 bytes para 9 enviados significa baud do recepto
 
 ```bash
 # Computador A
-python chat_serial.py --porta /dev/cu.usbserial-130 --nome A
+python chat_serial.py --nome A
 
 # Computador B
 python chat_tcp_nport.py --host <IP_do_NPort> --nome B
@@ -187,7 +193,7 @@ Com o chat validado:
 
 ```bash
 # Computador A
-python modbus_slave.py --porta /dev/cu.usbserial-130 --slave-id 1
+python modbus_slave.py --slave-id 1
 
 # Computador B
 python modbus_master.py tcp --host <IP_do_NPort> --slave-id 1
@@ -207,6 +213,7 @@ escravo que o setpoint chegou.
 |---|---|---|
 | Console web do NPort não abre | PC fora da faixa `192.168.127.x` | Passo 4 |
 | `diagnostico.py` não lista porta nenhuma | Driver FTDI não instalado | Passo 3 |
+| `No such file or directory` na porta | Cabo replugado em outra entrada USB — o nome mudou | Omita `--porta` e deixe achar sozinho |
 | `--tcp` dá RECUSADO | NPort em Real COM em vez de TCP Server | Passo 4 |
 | `--tcp` dá TIMEOUT | IP, faixa de rede ou cabo Ethernet | Passo 5 |
 | Lixo contínuo com ninguém digitando | Ver bloco abaixo | Passo 6a |

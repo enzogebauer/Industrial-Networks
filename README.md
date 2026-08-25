@@ -79,7 +79,7 @@ driver proprietário em lugar nenhum:
 
 ```bash
 # Computador A
-python chat_serial.py --porta /dev/ttyUSB0 --nome A
+python chat_serial.py --nome A
 
 # Computador B
 python chat_tcp_nport.py --host 192.168.127.254 --nome B
@@ -100,7 +100,7 @@ Se aparecer lixo na tela em vez de texto, pare o chat e use o sniffer — ele
 mostra o byte cru e separa problema elétrico de baud rate divergente:
 
 ```bash
-python sniffer.py --porta /dev/ttyUSB0 --segundos 10       # A
+python sniffer.py --segundos 10                             # A
 python sniffer_tcp.py --host 192.168.127.254 --segundos 10  # B
 ```
 
@@ -108,7 +108,7 @@ python sniffer_tcp.py --host 192.168.127.254 --segundos 10  # B
 
 ```bash
 # Computador A
-python modbus_slave.py --porta /dev/ttyUSB0 --slave-id 1
+python modbus_slave.py --slave-id 1
 
 # Computador B — via TCP direto (NPort em TCP Server mode)
 python modbus_master.py tcp --host 192.168.127.254 --slave-id 1
