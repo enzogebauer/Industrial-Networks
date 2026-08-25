@@ -82,8 +82,10 @@ def escuta(ser: serial.Serial, segundos: float, mostrar: bool) -> bytes:
 def varrer(porta: str, segundos: float) -> None:
     """Abre a porta em cada baud e ve qual produz texto com mais sentido."""
     print("Varredura de baud rate.")
-    print("Mantenha o OUTRO lado transmitindo texto sem parar durante o teste.")
-    print(f"{len(BAUDS)} taxas x {segundos:.0f}s cada.\n")
+    print("O outro lado precisa estar transmitindo durante o teste — se o que")
+    print("chega e esporadico, use uma janela larga ou nenhuma taxa vai pegar.")
+    total = len(BAUDS) * segundos
+    print(f"{len(BAUDS)} taxas x {segundos:.0f}s = ~{total / 60:.0f} min.\n")
 
     resultados = []
     for baud in BAUDS:
@@ -138,7 +140,7 @@ def main() -> None:
     porta = detectar(args.porta)
 
     if args.varrer:
-        varrer(porta, min(args.segundos, 3.0))
+        varrer(porta, args.segundos)
         return
 
     try:
