@@ -19,10 +19,10 @@ socket, o que roda igual em Windows, Linux e macOS.
 > um e siga inteiro**, porque eles exigem configurações diferentes no NPort.
 
 Ordem importa: monte e energize o hardware antes de mexer em configuração, e
-valide cada camada antes de subir pra próxima (barramento em silêncio → loopback
-→ chat → Modbus). Pular direto pro Modbus e algo falhar deixa quatro suspeitos
-ao mesmo tempo — fiação, modo do NPort, IP, baud rate. Os passos 6 e 7 existem
-pra isolar isso.
+valide cada camada antes de subir pra próxima (barramento em silêncio →
+loopback → travessia → chat). Ir direto pro chat e algo falhar deixa quatro
+suspeitos ao mesmo tempo — fiação, modo do NPort, IP, baud rate. O passo 6
+existe pra eliminar um de cada vez.
 
 ---
 
@@ -187,23 +187,9 @@ python chat_tcp_nport.py --host <IP_do_NPort> --nome B
 Digite uma mensagem em cada ponta — ela deve aparecer na outra. Esse é o teste
 que prova USB + RS-485 + NPort + rede funcionando juntos, de ponta a ponta.
 
-## 8. Rodar a aplicação Modbus
-
-Com o chat validado:
-
-```bash
-# Computador A
-python modbus_slave.py --slave-id 1
-
-# Computador B
-python modbus_master.py tcp --host <IP_do_NPort> --slave-id 1
-
-# testando escrita
-python modbus_master.py tcp --host <IP_do_NPort> --setpoint 42
-```
-
-O mestre deve imprimir ciclo e temperatura a cada segundo. Confira no log do
-escravo que o setpoint chegou.
+Com o chat passando nos dois sentidos, a prática está cumprida: dois
+dispositivos comunicando através do gateway conversor de meio físico, um em
+RS-485 e outro em Ethernet, sem que nenhum dos dois conheça o meio do outro.
 
 ---
 
@@ -221,9 +207,8 @@ escravo que o setpoint chegou.
 | Loopback retorna lixo | Baud rate divergente | Passo 4 |
 | Chega muito mais byte do que foi enviado | Baud do NPort acima da do Python | Passo 4 |
 | Chat não passa em nenhuma direção | Polaridade invertida (+/-) no par trançado | Passo 1 |
-| Chat passa, Modbus não responde | NPort em RS-422/4-wire em vez de RS-485 2-wire | Passo 4 |
-| Timeout intermitente no Modbus | Latency Timer ainda em 16 ms | Passo 3 |
-| TCP conecta mas Modbus não decodifica nada | Esqueceu `framer=ModbusRtuFramer` no cliente TCP | `modbus_master.py` |
+| Chat passa num sentido só | NPort em RS-422/4-wire em vez de RS-485 2-wire | Passo 4 |
+| Mensagens chegam com atraso perceptível | Latency Timer ainda em 16 ms | Passo 3 |
 
 ### Lixo contínuo mesmo sem ninguém transmitir
 
